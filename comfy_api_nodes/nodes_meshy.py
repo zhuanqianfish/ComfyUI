@@ -89,6 +89,9 @@ class MeshyTextToModelNode(IO.ComfyNode):
             ],
             is_api_node=True,
             is_output_node=True,
+            price_badge=IO.PriceBadge(
+                expr="""{"type":"usd","usd":0.8}""",
+            ),
         )
 
     @classmethod
@@ -174,6 +177,9 @@ class MeshyRefineNode(IO.ComfyNode):
             ],
             is_api_node=True,
             is_output_node=True,
+            price_badge=IO.PriceBadge(
+                expr="""{"type":"usd","usd":0.4}""",
+            ),
         )
 
     @classmethod
@@ -307,6 +313,15 @@ class MeshyImageToModelNode(IO.ComfyNode):
             ],
             is_api_node=True,
             is_output_node=True,
+            price_badge=IO.PriceBadge(
+                depends_on=IO.PriceBadgeDepends(widgets=["should_texture"]),
+                expr="""
+                (
+                  $prices := {"true": 1.2, "false": 0.8};
+                  {"type":"usd","usd": $lookup($prices, widgets.should_texture)}
+                )
+                """,
+            ),
         )
 
     @classmethod
@@ -459,6 +474,15 @@ class MeshyMultiImageToModelNode(IO.ComfyNode):
             ],
             is_api_node=True,
             is_output_node=True,
+            price_badge=IO.PriceBadge(
+                depends_on=IO.PriceBadgeDepends(widgets=["should_texture"]),
+                expr="""
+                (
+                  $prices := {"true": 0.6, "false": 0.2};
+                  {"type":"usd","usd": $lookup($prices, widgets.should_texture)}
+                )
+                """,
+            ),
         )
 
     @classmethod
@@ -557,6 +581,9 @@ class MeshyRigModelNode(IO.ComfyNode):
             ],
             is_api_node=True,
             is_output_node=True,
+            price_badge=IO.PriceBadge(
+                expr="""{"type":"usd","usd":0.2}""",
+            ),
         )
 
     @classmethod
@@ -622,6 +649,9 @@ class MeshyAnimateModelNode(IO.ComfyNode):
             ],
             is_api_node=True,
             is_output_node=True,
+            price_badge=IO.PriceBadge(
+                expr="""{"type":"usd","usd":0.12}""",
+            ),
         )
 
     @classmethod
@@ -695,6 +725,9 @@ class MeshyTextureNode(IO.ComfyNode):
             ],
             is_api_node=True,
             is_output_node=True,
+            price_badge=IO.PriceBadge(
+                expr="""{"type":"usd","usd":0.4}""",
+            ),
         )
 
     @classmethod
@@ -710,7 +743,7 @@ class MeshyTextureNode(IO.ComfyNode):
         if text_style_prompt and image_style is not None:
             raise ValueError("text_style_prompt and image_style cannot be used at the same time")
         if not text_style_prompt and image_style is None:
-            raise ValueError("One of the text_style_prompt or image_style is required")
+            raise ValueError("Either text_style_prompt or image_style is required")
         image_style_url = None
         if image_style is not None:
             image_style_url = (await upload_images_to_comfyapi(cls, image_style, wait_label="Uploading style"))[0]

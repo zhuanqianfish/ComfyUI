@@ -1,0 +1,16 @@
+name: Mirror Source Repo
+on:
+  schedule:
+    - cron: '0 * * * *'  # 每小时自动触发
+  workflow_dispatch:  # 支持网页手动触发
+
+jobs:
+  mirror:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Clone source repo (bare)
+        run: git clone --bare https://github.com/Comfy-Org/ComfyUI.git .
+      - name: Push to mirror repo
+        run: |
+          git remote add my-mirror https://x:${{ secrets.GITHUB_TOKEN }}@github.com/zhuanqianfish/ComfyUI.git
+          git push --mirror my-mirror

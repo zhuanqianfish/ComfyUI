@@ -4,7 +4,6 @@ on:
     - cron: '0 * * * *'  # 每小时自动触发
   workflow_dispatch:  # 支持网页手动触发
 
-# 无需再配置 GITHUB_TOKEN 权限，改用自定义 PAT
 jobs:
   mirror:
     runs-on: ubuntu-latest
@@ -12,11 +11,13 @@ jobs:
       - name: Clone source repo (bare, full branches)
         run: git clone --bare https://github.com/Comfy-Org/ComfyUI.git .
       
-      - name: Push all branches (include master) to mirror repo with PAT
+      - name: Push all branches (no delete) and tags to mirror repo
         run: |
-          # 直接使用自定义 PAT 进行认证推送，无需额外 Git 密码配置
-          git push --mirror https://${{ secrets.COMFYUI_MIRROR_PAT }}@github.com/zhuanqianfish/ComfyUI.git
+          # 1. 同步所有分支（仅创建/更新，不删除，规避 main 分支删除报错）
+          git push https://${{ secrets.COMFYUI_MIRROR_PAT }}@github.com/zhuanqianfish/ComfyUI.git --all
           
-          # 兜底：强制推送 master 分支，确保分支对齐
-          git remote add temp-mirror https://${{ secrets.COMFYUI_MIRROR_PAT }}@github.com/zhuanqianfish/ComfyUI.git || true
-          git push temp-mirror master:master --force || true
+          # 2. 同步所有标签（完整保留原仓库标签，无删除操作）
+          git push https://${{ secrets.COMFYUI_MIRROR_PAT }}@github.com/zhuanqianfish/ComfyUI.git --tags
+          
+          # 3. 兜底：强制推送 master 分支，确保核心分支对齐（覆盖冲突）
+          git push https://${{ secrets.COMFYUI_MIRROR_PAT }}@github.com/zhuanqianfish/ComfyUI.git master:master --force

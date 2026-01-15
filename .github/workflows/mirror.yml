@@ -12,5 +12,6 @@ jobs:
         run: git clone --bare https://github.com/Comfy-Org/ComfyUI.git .
       - name: Push to mirror repo
         run: |
-          git remote add my-mirror https://x:${{ secrets.GITHUB_TOKEN }}@github.com/zhuanqianfish/ComfyUI.git
+          git remote rm my-mirror || true
+          git remote add my-mirror https://${{ secrets.GITHUB_TOKEN }}@github.com/zhuanqianfish/ComfyUI.git
           git push --mirror my-mirror

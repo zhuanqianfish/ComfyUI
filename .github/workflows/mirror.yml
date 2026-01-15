@@ -4,10 +4,7 @@ on:
     - cron: '0 * * * *'  # 每小时自动触发
   workflow_dispatch:  # 支持网页手动触发
 
-# 必须保留：提升 GITHUB_TOKEN 写入权限（含分支创建、推送权限）
-permissions:
-  contents: write
-
+# 无需再配置 GITHUB_TOKEN 权限，改用自定义 PAT
 jobs:
   mirror:
     runs-on: ubuntu-latest
@@ -15,17 +12,11 @@ jobs:
       - name: Clone source repo (bare, full branches)
         run: git clone --bare https://github.com/Comfy-Org/ComfyUI.git .
       
-      - name: Configure Git non-interactive auth (fix password prompt)
+      - name: Push all branches (include master) to mirror repo with PAT
         run: |
-          git config --global user.name "github-actions[bot]"
-          git config --global user.password "${{ secrets.GITHUB_TOKEN }}"
-          git config --global user.email "github-actions[bot]@users.noreply.github.com"
-      
-      - name: Push all branches (include master) to mirror repo
-        run: |
-          # 直接推送所有镜像数据（含 master 分支），覆盖分支差异
-          git push --mirror https://${{ secrets.GITHUB_TOKEN }}@github.com/zhuanqianfish/ComfyUI.git
+          # 直接使用自定义 PAT 进行认证推送，无需额外 Git 密码配置
+          git push --mirror https://${{ secrets.COMFYUI_MIRROR_PAT }}@github.com/zhuanqianfish/ComfyUI.git
           
-          # 额外：强制将你的仓库默认分支对应的远程分支设为 master（兜底保障）
-          git remote add temp-mirror https://${{ secrets.GITHUB_TOKEN }}@github.com/zhuanqianfish/ComfyUI.git || true
+          # 兜底：强制推送 master 分支，确保分支对齐
+          git remote add temp-mirror https://${{ secrets.COMFYUI_MIRROR_PAT }}@github.com/zhuanqianfish/ComfyUI.git || true
           git push temp-mirror master:master --force || true

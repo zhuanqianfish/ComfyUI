@@ -1,5 +1,6 @@
 import logging
 import uuid
+import urllib.parse
 from aiohttp import web
 
 from pydantic import ValidationError
@@ -100,3 +101,32 @@ async def get_tags(request: web.Request) -> web.Response:
         owner_id=USER_MANAGER.get_request_user_id(request),
     )
     return web.json_response(result.model_dump(mode="json"))
+
+
+@ROUTES.get(f"/api/assets/{{id:{UUID_RE}}}/content")
+async def download_asset_content(request: web.Request) -> web.Response:
+    # question: do we need disposition? could we just stick with one of these?
+    disposition = request.query.get("disposition", "attachment").lower().strip()
+    if disposition not in {"inline", "attachment"}:
+        disposition = "attachment"
+
+    try:
+        abs_path, content_type, filename = manager.resolve_asset_content_for_download(
+            asset_info_id=str(uuid.UUID(request.match_info["id"])),
+            owner_id=USER_MANAGER.get_request_user_id(request),
+        )
+    except ValueError as ve:
+        return _error_response(404, "ASSET_NOT_FOUND", str(ve))
+    except NotImplementedError as nie:
+        return _error_response(501, "BACKEND_UNSUPPORTED", str(nie))
+    except FileNotFoundError:
+        return _error_response(404, "FILE_NOT_FOUND", "Underlying file not found on disk.")
+
+    quoted = (filename or "").replace("\r", "").replace("\n", "").replace('"', "'")
+    cd = f'{disposition}; filename="{quoted}"; filename*=UTF-8\'\'{urllib.parse.quote(filename)}'
+
+    resp = web.FileResponse(abs_path)
+    resp.content_type = content_type
+    resp.headers["Content-Disposition"] = cd
+    return resp
+

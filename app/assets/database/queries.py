@@ -2,7 +2,7 @@ import sqlalchemy as sa
 from collections import defaultdict
 from sqlalchemy import select, exists, func
 from sqlalchemy.orm import Session, contains_eager, noload
-from app.assets.database.models import Asset, AssetInfo, AssetInfoMeta, AssetInfoTag, Tag
+from app.assets.database.models import Asset, AssetInfo, AssetCacheState, AssetInfoMeta, AssetInfoTag, Tag
 from app.assets.helpers import escape_like_prefix, normalize_tags
 from typing import Sequence
 
@@ -207,6 +207,39 @@ def fetch_asset_info_asset_and_tags(
             seen.add(tag_name)
             tags.append(tag_name)
     return first_info, first_asset, tags
+
+def fetch_asset_info_and_asset(
+    session: Session,
+    *,
+    asset_info_id: str,
+    owner_id: str = "",
+) -> tuple[AssetInfo, Asset] | None:
+    stmt = (
+        select(AssetInfo, Asset)
+        .join(Asset, Asset.id == AssetInfo.asset_id)
+        .where(
+            AssetInfo.id == asset_info_id,
+            visible_owner_clause(owner_id),
+        )
+        .limit(1)
+        .options(noload(AssetInfo.tags))
+    )
+    row = session.execute(stmt)
+    pair = row.first()
+    if not pair:
+        return None
+    return pair[0], pair[1]
+
+def list_cache_states_by_asset_id(
+    session: Session, *, asset_id: str
+) -> Sequence[AssetCacheState]:
+    return (
+        session.execute(
+            select(AssetCacheState)
+            .where(AssetCacheState.asset_id == asset_id)
+            .order_by(AssetCacheState.id.asc())
+        )
+    ).scalars().all()
 
 def list_tags_with_usage(
     session: Session,

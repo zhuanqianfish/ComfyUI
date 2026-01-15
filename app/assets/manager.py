@@ -1,3 +1,5 @@
+import os
+import mimetypes
 from typing import Sequence
 
 from app.database.db import create_session
@@ -5,6 +7,8 @@ from app.assets.api import schemas_out
 from app.assets.database.queries import (
     asset_exists_by_hash,
     fetch_asset_info_asset_and_tags,
+    fetch_asset_info_and_asset,
+    list_cache_states_by_asset_id,
     list_asset_infos_page,
     list_tags_with_usage,
 )
@@ -24,6 +28,7 @@ def asset_exists(asset_hash: str) -> bool:
         return asset_exists_by_hash(session, asset_hash=asset_hash)
 
 def list_assets(
+    *,
     include_tags: Sequence[str] | None = None,
     exclude_tags: Sequence[str] | None = None,
     name_contains: str | None = None,
@@ -76,7 +81,11 @@ def list_assets(
         has_more=(offset + len(summaries)) < total,
     )
 
-def get_asset(asset_info_id: str, owner_id: str = "") -> schemas_out.AssetDetail:
+def get_asset(
+    *,
+    asset_info_id: str,
+    owner_id: str = "",
+) -> schemas_out.AssetDetail:
     with create_session() as session:
         res = fetch_asset_info_asset_and_tags(session, asset_info_id=asset_info_id, owner_id=owner_id)
         if not res:
@@ -96,6 +105,29 @@ def get_asset(asset_info_id: str, owner_id: str = "") -> schemas_out.AssetDetail
         created_at=info.created_at,
         last_access_time=info.last_access_time,
     )
+
+def resolve_asset_content_for_download(
+    *,
+    asset_info_id: str,
+    owner_id: str = "",
+) -> tuple[str, str, str]:
+    with create_session() as session:
+        pair = fetch_asset_info_and_asset(session, asset_info_id=asset_info_id, owner_id=owner_id)
+        if not pair:
+            raise ValueError(f"AssetInfo {asset_info_id} not found")
+
+        info, asset = pair
+        states = list_cache_states_by_asset_id(session, asset_id=asset.id)
+        abs_path = pick_best_live_path(states)
+        if not abs_path:
+            raise FileNotFoundError
+
+        touch_asset_info_by_id(session, asset_info_id=asset_info_id)
+        session.commit()
+
+    ctype = asset.mime_type or mimetypes.guess_type(info.name or abs_path)[0] or "application/octet-stream"
+    download_name = info.name or os.path.basename(abs_path)
+    return abs_path, ctype, download_name
 
 def list_tags(
     prefix: str | None = None,

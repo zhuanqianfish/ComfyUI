@@ -4,6 +4,10 @@ on:
     - cron: '0 * * * *'  # 每小时自动触发
   workflow_dispatch:  # 支持网页手动触发
 
+# 核心添加：提升 GITHUB_TOKEN 权限，授予仓库内容写入权限
+permissions:
+  contents: write
+
 jobs:
   mirror:
     runs-on: ubuntu-latest
